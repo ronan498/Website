@@ -649,18 +649,20 @@
             }
             
             if (hasAnswered) {
+                // Player has submitted, show waiting screen
                 document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
                 showScreen('waitingAnswer');
                 currentPhaseKey = phaseKey + '-waiting';
             } else {
-                // Only reset UI if entering this phase for the first time
+                // Player hasn't submitted - always show answer screen
+                // Only reset input/timer if entering this phase for the first time
                 if (currentPhaseKey !== phaseKey) {
-                    currentPhaseKey = phaseKey;
                     document.getElementById('questionText').textContent = question.forPlayer;
                     document.getElementById('answerInput').value = '';
-                    showScreen('answer');
                     startTimer('answerTimerProgress', 30);
                 }
+                currentPhaseKey = phaseKey;
+                showScreen('answer'); // Always ensure answer screen is shown
             }
         }
 
@@ -708,35 +710,36 @@
             }
             
             if (hasGuessed) {
+                // Player has guessed, show waiting screen
                 document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
                 showScreen('waitingAnswer');
                 currentPhaseKey = phaseKey + '-waiting';
-                return;
-            }
-            
-            // Only reset UI if entering this phase for the first time
-            if (currentPhaseKey !== phaseKey) {
+            } else {
+                // Player hasn't guessed - always show guess screen
+                // Only reset options if entering this phase for the first time
+                if (currentPhaseKey !== phaseKey) {
+                    document.getElementById('guessQuestionText').textContent = question.forGuesser;
+                    document.getElementById('partnerNameDisplay').textContent = gameState.partnerName;
+                    
+                    const partnerAnswer = data.answers[gameState.partnerKey];
+                    const fakes = getFakeAnswers(question.forPlayer, partnerAnswer, 3);
+                    const allAnswers = [partnerAnswer, ...fakes].sort(() => Math.random() - 0.5);
+                    
+                    const grid = document.getElementById('answersGrid');
+                    grid.innerHTML = '';
+                    
+                    allAnswers.forEach((answer) => {
+                        const option = document.createElement('div');
+                        option.className = 'answer-option';
+                        option.textContent = answer;
+                        option.addEventListener('click', () => selectGuess(option, answer));
+                        grid.appendChild(option);
+                    });
+                    
+                    startTimer('guessTimerProgress', 20);
+                }
                 currentPhaseKey = phaseKey;
-                document.getElementById('guessQuestionText').textContent = question.forGuesser;
-                document.getElementById('partnerNameDisplay').textContent = gameState.partnerName;
-                
-                const partnerAnswer = data.answers[gameState.partnerKey];
-                const fakes = getFakeAnswers(question.forPlayer, partnerAnswer, 3);
-                const allAnswers = [partnerAnswer, ...fakes].sort(() => Math.random() - 0.5);
-                
-                const grid = document.getElementById('answersGrid');
-                grid.innerHTML = '';
-                
-                allAnswers.forEach((answer) => {
-                    const option = document.createElement('div');
-                    option.className = 'answer-option';
-                    option.textContent = answer;
-                    option.addEventListener('click', () => selectGuess(option, answer));
-                    grid.appendChild(option);
-                });
-                
-                showScreen('guess');
-                startTimer('guessTimerProgress', 20);
+                showScreen('guess'); // Always ensure guess screen is shown
             }
         }
 
