@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Love Quiz - Play Together</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { min-height: 100vh; min-height: 100dvh; font-family: 'Montserrat', sans-serif; overflow-x: hidden; position: relative; background: #1a1a2e; color: #fff; }
+        .background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); z-index: -2; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; overflow: hidden; }
+        .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle 3s ease-in-out infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { text-align: center; padding: 20px 0; }
+        .back-btn { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 0.85rem; text-decoration: none; }
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+        
+        .serif { font-family: 'Cormorant Garamond', serif; }
+        .card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1); padding: 30px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        
+        .game-title { font-size: 2.5rem; margin-bottom: 10px; }
+        .game-subtitle { color: rgba(255,255,255,0.6); font-size: 0.9rem; font-weight: 300; letter-spacing: 2px; }
+        
+        .screen { display: none; flex: 1; flex-direction: column; justify-content: center; }
+        .screen.active { display: flex; }
+        
+        .lobby-card { text-align: center; }
+        .player-name-input { width: 100%; padding: 15px 20px; font-size: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-family: 'Montserrat', sans-serif; margin: 20px 0; text-align: center; }
+        .player-name-input::placeholder { color: rgba(255,255,255,0.4); }
+        .player-name-input:focus { outline: none; border-color: rgba(255,255,255,0.4); }
+        
+        .room-code-display { font-size: 2rem; letter-spacing: 8px; background: rgba(255,255,255,0.1); padding: 15px 30px; border-radius: 12px; margin: 15px 0; font-weight: 500; user-select: all; cursor: pointer; }
+        .room-code-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+        
+        .join-input { width: 100%; padding: 15px 20px; font-size: 1.2rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-family: 'Montserrat', sans-serif; margin: 10px 0; text-align: center; letter-spacing: 5px; text-transform: uppercase; }
+        
+        .btn { padding: 14px 40px; font-size: 0.95rem; font-weight: 400; border: none; border-radius: 30px; cursor: pointer; transition: all 0.3s ease; font-family: 'Montserrat', sans-serif; letter-spacing: 1px; margin: 5px; }
+        .btn-primary { background: linear-gradient(135deg, #c9a0a0, #a07070); color: white; box-shadow: 0 4px 20px rgba(169, 112, 112, 0.4); }
+        .btn-primary:hover { transform: scale(1.05); }
+        .btn-primary:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.2); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+        .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(125, 206, 160, 0.9); color: white; padding: 12px 24px; border-radius: 25px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; z-index: 1000; }
+        .copy-toast.show { opacity: 1; }
+        
+        .divider { display: flex; align-items: center; margin: 25px 0; color: rgba(255,255,255,0.4); font-size: 0.85rem; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+        .divider span { padding: 0 15px; }
+        
+        /* Waiting Room */
+        .players-list { margin: 20px 0; }
+        .player-item { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; margin: 10px 0; }
+        .player-info { display: flex; align-items: center; gap: 12px; }
+        .player-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #c9a0a0, #a07070); display: flex; align-items: center; justify-content: center; font-weight: 500; }
+        .player-name { font-weight: 400; }
+        .player-status { font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; }
+        .player-status.ready { background: rgba(125, 206, 160, 0.2); color: #7dcea0; }
+        .player-status.waiting { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+        
+        .ready-btn { width: 100%; margin-top: 20px; padding: 18px; font-size: 1rem; }
+        .ready-btn.is-ready { background: linear-gradient(135deg, #7dcea0, #5db882); }
+        
+        /* Game Screen */
+        .round-indicator { text-align: center; margin-bottom: 20px; }
+        .round-number { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; }
+        .round-title { font-size: 1.5rem; margin-top: 5px; }
+        
+        .scores-bar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .score-item { text-align: center; padding: 10px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; flex: 1; margin: 0 5px; }
+        .score-name { font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-bottom: 5px; }
+        .score-value { font-size: 1.5rem; font-weight: 500; }
+        .score-item.highlight { background: rgba(125, 206, 160, 0.2); }
+        
+        .question-card { text-align: center; padding: 30px 20px; }
+        .question-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .question-text { font-size: 1.3rem; line-height: 1.6; color: rgba(255,255,255,0.9); }
+        .question-target { color: #e8b4b4; font-weight: 500; }
+        
+        .answer-input-container { margin-top: 25px; }
+        .answer-input { width: 100%; padding: 15px 20px; font-size: 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-family: 'Montserrat', sans-serif; text-align: center; }
+        .answer-input:focus { outline: none; border-color: rgba(255,255,255,0.4); }
+        .submit-answer-btn { margin-top: 15px; width: 100%; }
+        
+        .waiting-message { text-align: center; padding: 30px; color: rgba(255,255,255,0.6); }
+        .waiting-message .dots { display: inline-block; animation: dots 1.5s infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60%, 100% { content: '...'; } }
+        
+        /* Answer Selection */
+        .answers-grid { display: grid; gap: 12px; margin-top: 20px; }
+        .answer-option { padding: 18px 20px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; text-align: center; font-size: 1rem; }
+        .answer-option:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+        .answer-option.selected { border-color: #c9a0a0; background: rgba(201, 160, 160, 0.2); }
+        .answer-option.correct { border-color: #7dcea0; background: rgba(125, 206, 160, 0.2); }
+        .answer-option.wrong { border-color: #e88a8a; background: rgba(232, 138, 138, 0.2); }
+        .answer-option.disabled { pointer-events: none; opacity: 0.7; }
+        
+        .timer-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 20px 0; overflow: hidden; }
+        .timer-progress { height: 100%; background: linear-gradient(90deg, #c9a0a0, #e8b4b4); transition: width 0.1s linear; }
+        
+        /* Results */
+        .result-card { text-align: center; }
+        .result-icon { font-size: 4rem; margin-bottom: 20px; }
+        .result-title { font-size: 2rem; margin-bottom: 10px; }
+        .result-subtitle { color: rgba(255,255,255,0.6); font-size: 1rem; margin-bottom: 30px; }
+        .final-scores { display: flex; justify-content: center; gap: 40px; margin: 30px 0; }
+        .final-score-item { text-align: center; }
+        .final-score-name { font-size: 1rem; color: rgba(255,255,255,0.7); margin-bottom: 10px; }
+        .final-score-value { font-size: 3rem; font-weight: 300; }
+        .final-score-item.winner .final-score-value { color: #7dcea0; }
+        
+        .play-again-btn { margin-top: 20px; }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .pulse { animation: pulse 2s ease infinite; }
+        
+        .confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; }
+        .confetti { position: absolute; animation: confettiFall linear forwards; }
+        @keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        
+        /* Connection status */
+        .connection-status { position: fixed; top: 20px; right: 20px; padding: 8px 16px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 8px; }
+        .connection-status.connected { background: rgba(125, 206, 160, 0.2); color: #7dcea0; }
+        .connection-status.disconnected { background: rgba(232, 138, 138, 0.2); color: #e88a8a; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .connected .status-dot { background: #7dcea0; }
+        .disconnected .status-dot { background: #e88a8a; }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <div class="stars" id="stars"></div>
+    <div class="confetti-container" id="confettiContainer"></div>
+    <div class="copy-toast" id="copyToast">Room code copied!</div>
+    
+    <a href="index.html" class="back-btn">← Back</a>
+    
+    <div class="connection-status disconnected" id="connectionStatus">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting...</span>
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="serif game-title">Love Quiz</h1>
+            <p class="game-subtitle">How well do you know each other?</p>
+        </div>
+        
+        <!-- Lobby Screen -->
+        <div class="screen active" id="lobbyScreen">
+            <div class="card lobby-card fade-in">
+                <h2 class="serif" style="font-size: 1.5rem; margin-bottom: 5px;">Enter Your Name</h2>
+                <p style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">This is how your partner will see you</p>
+                <input type="text" class="player-name-input" id="playerName" placeholder="Your name" maxlength="15">
+                
+                <button class="btn btn-primary" id="createRoomBtn" style="width: 100%; margin-top: 10px;">Create Room</button>
+                
+                <div class="divider"><span>or join a room</span></div>
+                
+                <input type="text" class="join-input" id="roomCodeInput" placeholder="ROOM CODE" maxlength="6">
+                <button class="btn btn-secondary" id="joinRoomBtn" style="width: 100%;">Join Room</button>
+            </div>
+        </div>
+        
+        <!-- Waiting Room Screen -->
+        <div class="screen" id="waitingScreen">
+            <div class="card fade-in">
+                <div style="text-align: center;">
+                    <p class="room-code-label">Room Code (tap to copy)</p>
+                    <div class="room-code-display" id="roomCodeDisplay" onclick="copyRoomCode()">----</div>
+                    <p style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">Share this code with your partner</p>
+                </div>
+                
+                <div class="players-list" id="playersList">
+                    <!-- Players will be added here -->
+                </div>
+                
+                <button class="btn btn-primary ready-btn" id="readyBtn">I'm Ready!</button>
+                <p style="text-align: center; margin-top: 15px; color: rgba(255,255,255,0.4); font-size: 0.8rem;">Both players must be ready to start</p>
+            </div>
+        </div>
+        
+        <!-- Question Input Screen (answering about yourself) -->
+        <div class="screen" id="answerScreen">
+            <div class="round-indicator">
+                <p class="round-number">Round <span id="currentRound">1</span> of <span id="totalRounds">5</span></p>
+                <h2 class="serif round-title">Answer Time</h2>
+            </div>
+            
+            <div class="scores-bar">
+                <div class="score-item" id="score1Container">
+                    <p class="score-name" id="score1Name">You</p>
+                    <p class="score-value" id="score1Value">0</p>
+                </div>
+                <div class="score-item" id="score2Container">
+                    <p class="score-name" id="score2Name">Partner</p>
+                    <p class="score-value" id="score2Value">0</p>
+                </div>
+            </div>
+            
+            <div class="card question-card fade-in">
+                <p class="question-label">Question for you</p>
+                <p class="question-text" id="questionText">What is your favorite movie?</p>
+                
+                <div class="answer-input-container">
+                    <input type="text" class="answer-input" id="answerInput" placeholder="Type your answer...">
+                    <button class="btn btn-primary submit-answer-btn" id="submitAnswerBtn">Submit Answer</button>
+                </div>
+                
+                <div class="timer-bar">
+                    <div class="timer-progress" id="answerTimerProgress" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Guess Screen (guessing partner's answer) -->
+        <div class="screen" id="guessScreen">
+            <div class="round-indicator">
+                <p class="round-number">Round <span id="guessRound">1</span> of <span id="guessTotalRounds">5</span></p>
+                <h2 class="serif round-title">Guess Time</h2>
+            </div>
+            
+            <div class="scores-bar">
+                <div class="score-item" id="guessScore1Container">
+                    <p class="score-name" id="guessScore1Name">You</p>
+                    <p class="score-value" id="guessScore1Value">0</p>
+                </div>
+                <div class="score-item" id="guessScore2Container">
+                    <p class="score-name" id="guessScore2Name">Partner</p>
+                    <p class="score-value" id="guessScore2Value">0</p>
+                </div>
+            </div>
+            
+            <div class="card question-card fade-in">
+                <p class="question-label">What did <span class="question-target" id="partnerNameDisplay">your partner</span> answer?</p>
+                <p class="question-text" id="guessQuestionText">What is their favorite movie?</p>
+                
+                <div class="answers-grid" id="answersGrid">
+                    <!-- Answer options will be added here -->
+                </div>
+                
+                <div class="timer-bar">
+                    <div class="timer-progress" id="guessTimerProgress" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Waiting Screen -->
+        <div class="screen" id="waitingAnswerScreen">
+            <div class="card" style="text-align: center; padding: 50px 30px;">
+                <div class="pulse" style="font-size: 3rem; margin-bottom: 20px;">💭</div>
+                <h2 class="serif" style="font-size: 1.5rem; margin-bottom: 10px;">Waiting</h2>
+                <p class="waiting-message" id="waitingMessage">Your partner is answering<span class="dots">...</span></p>
+            </div>
+        </div>
+        
+        <!-- Round Result Screen -->
+        <div class="screen" id="roundResultScreen">
+            <div class="card result-card fade-in">
+                <div class="result-icon" id="roundResultIcon">✨</div>
+                <h2 class="serif result-title" id="roundResultTitle">Nice!</h2>
+                <p class="result-subtitle" id="roundResultSubtitle">You both got it right!</p>
+                
+                <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin: 20px 0;">
+                    <p style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-bottom: 10px;">The answers were:</p>
+                    <p style="font-size: 1rem;" id="correctAnswerDisplay">Answer</p>
+                </div>
+                
+                <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem;" id="nextRoundText">Next round starting...</p>
+            </div>
+        </div>
+        
+        <!-- Final Results Screen -->
+        <div class="screen" id="resultsScreen">
+            <div class="card result-card fade-in">
+                <div class="result-icon" id="finalResultIcon">🎉</div>
+                <h2 class="serif result-title" id="finalResultTitle">Game Over!</h2>
+                <p class="result-subtitle" id="finalResultSubtitle">What a lovely game!</p>
+                
+                <div class="final-scores">
+                    <div class="final-score-item" id="finalScore1">
+                        <p class="final-score-name" id="finalName1">Player 1</p>
+                        <p class="final-score-value" id="finalValue1">0</p>
+                    </div>
+                    <div class="final-score-item" id="finalScore2">
+                        <p class="final-score-name" id="finalName2">Player 2</p>
+                        <p class="final-score-value" id="finalValue2">0</p>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary play-again-btn" id="playAgainBtn">Play Again</button>
+                <button class="btn btn-secondary" onclick="location.href='index.html'" style="width: 100%; margin-top: 10px;">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD4uRoIozO6A3ADNrLklZU1aT8aDtjabkM",
+            authDomain: "love-quiz-game.firebaseapp.com",
+            databaseURL: "https://love-quiz-game-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "love-quiz-game",
+            storageBucket: "love-quiz-game.firebasestorage.app",
+            messagingSenderId: "18707946220",
+            appId: "1:18707946220:web:c9e12732c348de9dafa3c9"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Create stars
+        function createStars() {
+            const stars = document.getElementById('stars');
+            for (let i = 0; i < 80; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                stars.appendChild(star);
+            }
+        }
+        createStars();
+
+        // Game state
+        let gameState = {
+            roomCode: null,
+            playerId: null,
+            playerName: '',
+            partnerName: '',
+            partnerKey: '',
+            isReady: false,
+            currentRound: 1,
+            totalRounds: 5,
+            myScore: 0,
+            partnerScore: 0,
+            isHost: false
+        };
+
+        let roomRef = null;
+        let timerInterval = null;
+
+        // Questions
+        const questions = [
+            { forPlayer: "What's your favorite movie?", forGuesser: "What's their favorite movie?" },
+            { forPlayer: "What's your dream vacation destination?", forGuesser: "What's their dream vacation destination?" },
+            { forPlayer: "What's your favorite food?", forGuesser: "What's their favorite food?" },
+            { forPlayer: "What's your biggest fear?", forGuesser: "What's their biggest fear?" },
+            { forPlayer: "What's your favorite song right now?", forGuesser: "What's their favorite song right now?" },
+            { forPlayer: "If you could have any superpower, what would it be?", forGuesser: "What superpower would they want?" },
+            { forPlayer: "What's your favorite memory of us?", forGuesser: "What's their favorite memory of you two?" },
+            { forPlayer: "What's something you've always wanted to try?", forGuesser: "What's something they've always wanted to try?" },
+            { forPlayer: "What's your comfort show?", forGuesser: "What's their comfort show?" },
+            { forPlayer: "What makes you happiest?", forGuesser: "What makes them happiest?" },
+            { forPlayer: "What's your favorite season?", forGuesser: "What's their favorite season?" },
+            { forPlayer: "What's your love language?", forGuesser: "What's their love language?" },
+            { forPlayer: "What's your ideal date night?", forGuesser: "What's their ideal date night?" },
+            { forPlayer: "What's a song that reminds you of us?", forGuesser: "What song reminds them of you two?" },
+            { forPlayer: "What's your guilty pleasure?", forGuesser: "What's their guilty pleasure?" }
+        ];
+
+        // Fake answers pool
+        const fakeAnswers = {
+            movie: ["The Notebook", "Titanic", "Inception", "Avengers", "Harry Potter", "The Lion King", "Frozen", "Interstellar", "Spirited Away", "La La Land"],
+            destination: ["Paris", "Tokyo", "Maldives", "New York", "Bali", "Iceland", "Hawaii", "Italy", "Greece", "Switzerland"],
+            food: ["Pizza", "Sushi", "Pasta", "Tacos", "Ice Cream", "Chocolate", "Burgers", "Thai Food", "Ramen", "Steak"],
+            fear: ["Spiders", "Heights", "Dark", "Failure", "Being alone", "Public speaking", "Deep water", "Losing loved ones", "Snakes", "Flying"],
+            superpower: ["Flying", "Invisibility", "Time travel", "Mind reading", "Super strength", "Teleportation", "Healing", "Super speed", "Shape shifting", "Immortality"],
+            generic: ["Something sweet", "Quality time", "Adventures", "Cozy nights in", "Music", "Nature", "Art", "Movies", "Reading", "Traveling", "Cooking", "Dancing", "Gaming", "Photography", "Beach days", "Road trips", "Sunsets", "Coffee dates"]
+        };
+
+        // DOM Elements
+        const screens = {
+            lobby: document.getElementById('lobbyScreen'),
+            waiting: document.getElementById('waitingScreen'),
+            answer: document.getElementById('answerScreen'),
+            guess: document.getElementById('guessScreen'),
+            waitingAnswer: document.getElementById('waitingAnswerScreen'),
+            roundResult: document.getElementById('roundResultScreen'),
+            results: document.getElementById('resultsScreen')
+        };
+
+        // Show screen helper
+        function showScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        }
+
+        // Generate room code
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        // Copy room code
+        function copyRoomCode() {
+            navigator.clipboard.writeText(gameState.roomCode).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            });
+        }
+
+        // Connection status
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === true) {
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('statusText').textContent = 'Connected';
+            } else {
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                document.getElementById('statusText').textContent = 'Connecting...';
+            }
+        });
+
+        // Create room
+        document.getElementById('createRoomBtn').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                alert('Please enter your name!');
+                return;
+            }
+            
+            gameState.playerName = name;
+            gameState.roomCode = generateRoomCode();
+            gameState.isHost = true;
+            gameState.playerId = 'player1';
+            
+            roomRef = db.ref('rooms/' + gameState.roomCode);
+            
+            roomRef.set({
+                host: name,
+                status: 'waiting',
+                players: {
+                    player1: { name: name, ready: false, score: 0 }
+                },
+                currentRound: 0,
+                answers: {},
+                guesses: {},
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                document.getElementById('roomCodeDisplay').textContent = gameState.roomCode;
+                setupRoomListeners();
+                showScreen('waiting');
+            });
+
+            roomRef.onDisconnect().remove();
+        });
+
+        // Join room
+        document.getElementById('joinRoomBtn').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim();
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            
+            if (!name) {
+                alert('Please enter your name!');
+                return;
+            }
+            if (!code || code.length !== 6) {
+                alert('Please enter a valid 6-character room code!');
+                return;
+            }
+            
+            gameState.playerName = name;
+            gameState.roomCode = code;
+            gameState.playerId = 'player2';
+            
+            roomRef = db.ref('rooms/' + code);
+            
+            roomRef.once('value').then((snapshot) => {
+                if (!snapshot.exists()) {
+                    alert('Room not found!');
+                    return;
+                }
+                
+                const data = snapshot.val();
+                if (data.players && data.players.player2) {
+                    alert('Room is full!');
+                    return;
+                }
+                
+                if (data.status !== 'waiting') {
+                    alert('Game already in progress!');
+                    return;
+                }
+                
+                roomRef.child('players/player2').set({
+                    name: name,
+                    ready: false,
+                    score: 0
+                }).then(() => {
+                    document.getElementById('roomCodeDisplay').textContent = code;
+                    setupRoomListeners();
+                    showScreen('waiting');
+                });
+
+                roomRef.child('players/player2').onDisconnect().remove();
+            });
+        });
+
+        // Setup room listeners
+        function setupRoomListeners() {
+            roomRef.child('players').on('value', (snapshot) => {
+                const players = snapshot.val();
+                if (!players) return;
+                
+                updatePlayersList(players);
+                
+                if (players.player1 && players.player2 && 
+                    players.player1.ready && players.player2.ready) {
+                    if (gameState.isHost) {
+                        startGame();
+                    }
+                }
+            });
+
+            roomRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    alert('Room closed!');
+                    location.reload();
+                    return;
+                }
+                
+                handleGameStateChange(data);
+            });
+        }
+
+        // Update players list
+        function updatePlayersList(players) {
+            const list = document.getElementById('playersList');
+            list.innerHTML = '';
+            
+            Object.entries(players).forEach(([key, player]) => {
+                const isMe = key === gameState.playerId;
+                if (!isMe) {
+                    gameState.partnerName = player.name;
+                    gameState.partnerKey = key;
+                    gameState.partnerScore = player.score || 0;
+                } else {
+                    gameState.myScore = player.score || 0;
+                }
+                
+                const item = document.createElement('div');
+                item.className = 'player-item';
+                item.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                        <span class="player-name">${player.name}${isMe ? ' (You)' : ''}</span>
+                    </div>
+                    <span class="player-status ${player.ready ? 'ready' : 'waiting'}">${player.ready ? 'Ready' : 'Waiting'}</span>
+                `;
+                list.appendChild(item);
+            });
+
+            document.getElementById('partnerNameDisplay').textContent = gameState.partnerName || 'your partner';
+            updateScoresUI();
+        }
+
+        // Ready button
+        const readyBtn = document.getElementById('readyBtn');
+        readyBtn.addEventListener('click', () => {
+            gameState.isReady = !gameState.isReady;
+            readyBtn.textContent = gameState.isReady ? "I'm Ready! ✓" : "I'm Ready!";
+            readyBtn.classList.toggle('is-ready', gameState.isReady);
+            roomRef.child(`players/${gameState.playerId}/ready`).set(gameState.isReady);
+        });
+
+        // Start game (host only)
+        function startGame() {
+            const shuffled = [...questions].sort(() => Math.random() - 0.5);
+            const selectedQuestions = shuffled.slice(0, 5);
+            
+            roomRef.update({
+                status: 'playing',
+                currentRound: 1,
+                questions: selectedQuestions,
+                phase: 'answering',
+                answers: {},
+                guesses: {}
+            });
+        }
+
+        // Handle game state changes
+        function handleGameStateChange(data) {
+            if (data.status === 'playing') {
+                gameState.currentRound = data.currentRound;
+                gameState.totalRounds = data.questions ? data.questions.length : 5;
+                
+                document.getElementById('currentRound').textContent = data.currentRound;
+                document.getElementById('totalRounds').textContent = gameState.totalRounds;
+                document.getElementById('guessRound').textContent = data.currentRound;
+                document.getElementById('guessTotalRounds').textContent = gameState.totalRounds;
+                
+                if (data.phase === 'answering') {
+                    handleAnswerPhase(data);
+                } else if (data.phase === 'guessing') {
+                    handleGuessPhase(data);
+                } else if (data.phase === 'results') {
+                    handleRoundResults(data);
+                }
+            } else if (data.status === 'finished') {
+                handleGameOver(data);
+            } else if (data.status === 'waiting') {
+                gameState.isReady = false;
+                readyBtn.textContent = "I'm Ready!";
+                readyBtn.classList.remove('is-ready');
+            }
+        }
+
+        // Answer phase
+        function handleAnswerPhase(data) {
+            const question = data.questions[data.currentRound - 1];
+            document.getElementById('questionText').textContent = question.forPlayer;
+            document.getElementById('answerInput').value = '';
+            
+            if (data.answers && data.answers[gameState.playerId]) {
+                document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+                showScreen('waitingAnswer');
+            } else {
+                showScreen('answer');
+                startTimer('answerTimerProgress', 30);
+            }
+        }
+
+        // Submit answer
+        document.getElementById('submitAnswerBtn').addEventListener('click', submitAnswer);
+        document.getElementById('answerInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitAnswer();
+        });
+
+        function submitAnswer() {
+            const answer = document.getElementById('answerInput').value.trim();
+            if (!answer) {
+                alert('Please enter an answer!');
+                return;
+            }
+            
+            clearInterval(timerInterval);
+            
+            roomRef.child(`answers/${gameState.playerId}`).set(answer).then(() => {
+                roomRef.child('answers').once('value').then((snap) => {
+                    const answers = snap.val();
+                    if (answers && answers.player1 && answers.player2 && gameState.isHost) {
+                        startGuessPhase();
+                    }
+                });
+            });
+            
+            document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+            showScreen('waitingAnswer');
+        }
+
+        // Start guess phase (host only)
+        function startGuessPhase() {
+            roomRef.update({ phase: 'guessing', guesses: {} });
+        }
+
+        // Guess phase
+        function handleGuessPhase(data) {
+            const question = data.questions[data.currentRound - 1];
+            document.getElementById('guessQuestionText').textContent = question.forGuesser;
+            document.getElementById('partnerNameDisplay').textContent = gameState.partnerName;
+            
+            if (data.guesses && data.guesses[gameState.playerId]) {
+                document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+                showScreen('waitingAnswer');
+                return;
+            }
+            
+            const partnerAnswer = data.answers[gameState.partnerKey];
+            const fakes = getFakeAnswers(question.forPlayer, partnerAnswer, 3);
+            const allAnswers = [partnerAnswer, ...fakes].sort(() => Math.random() - 0.5);
+            
+            const grid = document.getElementById('answersGrid');
+            grid.innerHTML = '';
+            
+            allAnswers.forEach((answer) => {
+                const option = document.createElement('div');
+                option.className = 'answer-option';
+                option.textContent = answer;
+                option.addEventListener('click', () => selectGuess(option, answer));
+                grid.appendChild(option);
+            });
+            
+            showScreen('guess');
+            startTimer('guessTimerProgress', 20);
+        }
+
+        // Get fake answers
+        function getFakeAnswers(question, correctAnswer, count) {
+            let pool = fakeAnswers.generic;
+            
+            const q = question.toLowerCase();
+            if (q.includes('movie')) pool = fakeAnswers.movie;
+            else if (q.includes('vacation') || q.includes('destination')) pool = fakeAnswers.destination;
+            else if (q.includes('food')) pool = fakeAnswers.food;
+            else if (q.includes('fear')) pool = fakeAnswers.fear;
+            else if (q.includes('superpower')) pool = fakeAnswers.superpower;
+            
+            const filtered = pool.filter(a => a.toLowerCase() !== correctAnswer.toLowerCase());
+            return filtered.sort(() => Math.random() - 0.5).slice(0, count);
+        }
+
+        // Select guess
+        function selectGuess(element, answer) {
+            clearInterval(timerInterval);
+            
+            document.querySelectorAll('.answer-option').forEach(opt => {
+                opt.classList.remove('selected');
+                opt.classList.add('disabled');
+            });
+            element.classList.add('selected');
+            
+            roomRef.child(`guesses/${gameState.playerId}`).set(answer).then(() => {
+                roomRef.child('guesses').once('value').then((snap) => {
+                    const guesses = snap.val();
+                    if (guesses && guesses.player1 && guesses.player2 && gameState.isHost) {
+                        calculateResults();
+                    }
+                });
+            });
+            
+            document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+            showScreen('waitingAnswer');
+        }
+
+        // Calculate results (host only)
+        function calculateResults() {
+            roomRef.once('value').then((snap) => {
+                const data = snap.val();
+                const answers = data.answers;
+                const guesses = data.guesses;
+                
+                const p1Correct = guesses.player1.toLowerCase().trim() === answers.player2.toLowerCase().trim();
+                const p2Correct = guesses.player2.toLowerCase().trim() === answers.player1.toLowerCase().trim();
+                
+                const updates = {
+                    phase: 'results',
+                    roundResults: {
+                        player1Correct: p1Correct,
+                        player2Correct: p2Correct,
+                        player1Answer: answers.player1,
+                        player2Answer: answers.player2
+                    }
+                };
+                
+                if (p1Correct) {
+                    updates['players/player1/score'] = (data.players.player1.score || 0) + 1;
+                }
+                if (p2Correct) {
+                    updates['players/player2/score'] = (data.players.player2.score || 0) + 1;
+                }
+                
+                roomRef.update(updates);
+            });
+        }
+
+        // Handle round results
+        function handleRoundResults(data) {
+            const results = data.roundResults;
+            const myCorrect = results[gameState.playerId + 'Correct'];
+            const partnerCorrect = results[gameState.partnerKey + 'Correct'];
+            
+            let icon, title, subtitle;
+            if (myCorrect && partnerCorrect) {
+                icon = '💕';
+                title = 'Perfect Match!';
+                subtitle = 'You both know each other so well!';
+            } else if (myCorrect) {
+                icon = '✨';
+                title = 'You Got It!';
+                subtitle = `You know ${gameState.partnerName} well!`;
+            } else if (partnerCorrect) {
+                icon = '💭';
+                title = 'Almost!';
+                subtitle = `${gameState.partnerName} knew your answer!`;
+            } else {
+                icon = '🤔';
+                title = 'Keep Trying!';
+                subtitle = 'More questions to go!';
+            }
+            
+            document.getElementById('roundResultIcon').textContent = icon;
+            document.getElementById('roundResultTitle').textContent = title;
+            document.getElementById('roundResultSubtitle').textContent = subtitle;
+            document.getElementById('correctAnswerDisplay').innerHTML = 
+                `<strong>You:</strong> ${results[gameState.playerId + 'Answer']}<br><strong>${gameState.partnerName}:</strong> ${results[gameState.partnerKey + 'Answer']}`;
+            
+            const isLastRound = data.currentRound >= data.questions.length;
+            document.getElementById('nextRoundText').textContent = 
+                isLastRound ? 'Final results coming...' : 'Next round starting...';
+            
+            showScreen('roundResult');
+            
+            if (gameState.isHost) {
+                setTimeout(() => {
+                    if (isLastRound) {
+                        roomRef.update({ status: 'finished' });
+                    } else {
+                        roomRef.update({
+                            currentRound: data.currentRound + 1,
+                            phase: 'answering',
+                            answers: {},
+                            guesses: {}
+                        });
+                    }
+                }, 4000);
+            }
+        }
+
+        // Game over
+        function handleGameOver(data) {
+            const players = data.players;
+            const myScore = players[gameState.playerId].score || 0;
+            const partnerScore = players[gameState.partnerKey].score || 0;
+            
+            document.getElementById('finalName1').textContent = gameState.playerName;
+            document.getElementById('finalValue1').textContent = myScore;
+            document.getElementById('finalName2').textContent = gameState.partnerName;
+            document.getElementById('finalValue2').textContent = partnerScore;
+            
+            let icon, title, subtitle;
+            if (myScore > partnerScore) {
+                icon = '🏆';
+                title = 'You Win!';
+                subtitle = `You know ${gameState.partnerName} better!`;
+                document.getElementById('finalScore1').classList.add('winner');
+                document.getElementById('finalScore2').classList.remove('winner');
+            } else if (partnerScore > myScore) {
+                icon = '💕';
+                title = `${gameState.partnerName} Wins!`;
+                subtitle = 'They know you so well!';
+                document.getElementById('finalScore2').classList.add('winner');
+                document.getElementById('finalScore1').classList.remove('winner');
+            } else {
+                icon = '🎉';
+                title = "It's a Tie!";
+                subtitle = 'You know each other equally well!';
+                document.getElementById('finalScore1').classList.remove('winner');
+                document.getElementById('finalScore2').classList.remove('winner');
+            }
+            
+            document.getElementById('finalResultIcon').textContent = icon;
+            document.getElementById('finalResultTitle').textContent = title;
+            document.getElementById('finalResultSubtitle').textContent = subtitle;
+            
+            showScreen('results');
+            createConfetti();
+        }
+
+        // Play again
+        document.getElementById('playAgainBtn').addEventListener('click', () => {
+            roomRef.update({
+                status: 'waiting',
+                currentRound: 0,
+                phase: null,
+                answers: {},
+                guesses: {},
+                'players/player1/ready': false,
+                'players/player1/score': 0,
+                'players/player2/ready': false,
+                'players/player2/score': 0
+            });
+            showScreen('waiting');
+        });
+
+        // Timer
+        function startTimer(elementId, duration) {
+            clearInterval(timerInterval);
+            const progress = document.getElementById(elementId);
+            let remaining = duration;
+            progress.style.width = '100%';
+            
+            timerInterval = setInterval(() => {
+                remaining -= 0.1;
+                progress.style.width = (remaining / duration * 100) + '%';
+                
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    if (elementId === 'answerTimerProgress') {
+                        document.getElementById('answerInput').value = '(No answer)';
+                        submitAnswer();
+                    }
+                }
+            }, 100);
+        }
+
+        // Update scores UI
+        function updateScoresUI() {
+            document.getElementById('score1Name').textContent = gameState.playerName || 'You';
+            document.getElementById('score1Value').textContent = gameState.myScore;
+            document.getElementById('score2Name').textContent = gameState.partnerName || 'Partner';
+            document.getElementById('score2Value').textContent = gameState.partnerScore;
+            
+            document.getElementById('guessScore1Name').textContent = gameState.playerName || 'You';
+            document.getElementById('guessScore1Value').textContent = gameState.myScore;
+            document.getElementById('guessScore2Name').textContent = gameState.partnerName || 'Partner';
+            document.getElementById('guessScore2Value').textContent = gameState.partnerScore;
+        }
+
+        // Confetti
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#c9a0a0', '#e8d5d5', '#a07070', '#d4bebe', '#ffffff', '#7dcea0'];
+            
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.width = (Math.random() * 8 + 4) + 'px';
+                    confetti.style.height = (Math.random() * 8 + 4) + 'px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.animationDuration = (Math.random() * 2.5 + 2) + 's';
+                    container.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 4500);
+                }, i * 30);
+            }
+        }
+    </script>
+</body>
+</html>
