@@ -354,6 +354,7 @@
 
         let roomRef = null;
         let timerInterval = null;
+        let currentPhaseKey = null; // Track current phase to avoid re-rendering
 
         // Questions
         const questions = [
@@ -589,6 +590,11 @@
             const shuffled = [...questions].sort(() => Math.random() - 0.5);
             const selectedQuestions = shuffled.slice(0, 5);
             
+            // Reset phase tracking
+            currentPhaseKey = null;
+            guessPhaseStarted = {};
+            resultsCalculated = {};
+            
             roomRef.update({
                 status: 'playing',
                 currentRound: 1,
@@ -623,21 +629,38 @@
                 gameState.isReady = false;
                 readyBtn.textContent = "I'm Ready!";
                 readyBtn.classList.remove('is-ready');
+                // Reset phase tracking for new game
+                currentPhaseKey = null;
+                guessPhaseStarted = {};
+                resultsCalculated = {};
             }
         }
 
         // Answer phase
         function handleAnswerPhase(data) {
             const question = data.questions[data.currentRound - 1];
-            document.getElementById('questionText').textContent = question.forPlayer;
-            document.getElementById('answerInput').value = '';
+            const phaseKey = `answer-${data.currentRound}`;
+            const hasAnswered = data.answers && data.answers[gameState.playerId];
             
-            if (data.answers && data.answers[gameState.playerId]) {
+            // Check if both players answered - host advances to guess phase
+            if (gameState.isHost && data.answers && data.answers.player1 && data.answers.player2) {
+                startGuessPhase();
+                return;
+            }
+            
+            if (hasAnswered) {
                 document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
                 showScreen('waitingAnswer');
+                currentPhaseKey = phaseKey + '-waiting';
             } else {
-                showScreen('answer');
-                startTimer('answerTimerProgress', 30);
+                // Only reset UI if entering this phase for the first time
+                if (currentPhaseKey !== phaseKey) {
+                    currentPhaseKey = phaseKey;
+                    document.getElementById('questionText').textContent = question.forPlayer;
+                    document.getElementById('answerInput').value = '';
+                    showScreen('answer');
+                    startTimer('answerTimerProgress', 30);
+                }
             }
         }
 
@@ -656,53 +679,65 @@
             
             clearInterval(timerInterval);
             
-            roomRef.child(`answers/${gameState.playerId}`).set(answer).then(() => {
-                roomRef.child('answers').once('value').then((snap) => {
-                    const answers = snap.val();
-                    if (answers && answers.player1 && answers.player2 && gameState.isHost) {
-                        startGuessPhase();
-                    }
-                });
-            });
+            // Just submit the answer - the listener will handle phase advancement
+            roomRef.child(`answers/${gameState.playerId}`).set(answer);
             
             document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
             showScreen('waitingAnswer');
         }
 
         // Start guess phase (host only)
+        let guessPhaseStarted = {};
         function startGuessPhase() {
+            const round = gameState.currentRound;
+            if (guessPhaseStarted[round]) return; // Prevent duplicate calls
+            guessPhaseStarted[round] = true;
             roomRef.update({ phase: 'guessing', guesses: {} });
         }
 
         // Guess phase
         function handleGuessPhase(data) {
             const question = data.questions[data.currentRound - 1];
-            document.getElementById('guessQuestionText').textContent = question.forGuesser;
-            document.getElementById('partnerNameDisplay').textContent = gameState.partnerName;
+            const phaseKey = `guess-${data.currentRound}`;
+            const hasGuessed = data.guesses && data.guesses[gameState.playerId];
             
-            if (data.guesses && data.guesses[gameState.playerId]) {
-                document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
-                showScreen('waitingAnswer');
+            // Check if both players guessed - host calculates results
+            if (gameState.isHost && data.guesses && data.guesses.player1 && data.guesses.player2) {
+                calculateResults();
                 return;
             }
             
-            const partnerAnswer = data.answers[gameState.partnerKey];
-            const fakes = getFakeAnswers(question.forPlayer, partnerAnswer, 3);
-            const allAnswers = [partnerAnswer, ...fakes].sort(() => Math.random() - 0.5);
+            if (hasGuessed) {
+                document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+                showScreen('waitingAnswer');
+                currentPhaseKey = phaseKey + '-waiting';
+                return;
+            }
             
-            const grid = document.getElementById('answersGrid');
-            grid.innerHTML = '';
-            
-            allAnswers.forEach((answer) => {
-                const option = document.createElement('div');
-                option.className = 'answer-option';
-                option.textContent = answer;
-                option.addEventListener('click', () => selectGuess(option, answer));
-                grid.appendChild(option);
-            });
-            
-            showScreen('guess');
-            startTimer('guessTimerProgress', 20);
+            // Only reset UI if entering this phase for the first time
+            if (currentPhaseKey !== phaseKey) {
+                currentPhaseKey = phaseKey;
+                document.getElementById('guessQuestionText').textContent = question.forGuesser;
+                document.getElementById('partnerNameDisplay').textContent = gameState.partnerName;
+                
+                const partnerAnswer = data.answers[gameState.partnerKey];
+                const fakes = getFakeAnswers(question.forPlayer, partnerAnswer, 3);
+                const allAnswers = [partnerAnswer, ...fakes].sort(() => Math.random() - 0.5);
+                
+                const grid = document.getElementById('answersGrid');
+                grid.innerHTML = '';
+                
+                allAnswers.forEach((answer) => {
+                    const option = document.createElement('div');
+                    option.className = 'answer-option';
+                    option.textContent = answer;
+                    option.addEventListener('click', () => selectGuess(option, answer));
+                    grid.appendChild(option);
+                });
+                
+                showScreen('guess');
+                startTimer('guessTimerProgress', 20);
+            }
         }
 
         // Get fake answers
@@ -730,21 +765,20 @@
             });
             element.classList.add('selected');
             
-            roomRef.child(`guesses/${gameState.playerId}`).set(answer).then(() => {
-                roomRef.child('guesses').once('value').then((snap) => {
-                    const guesses = snap.val();
-                    if (guesses && guesses.player1 && guesses.player2 && gameState.isHost) {
-                        calculateResults();
-                    }
-                });
-            });
+            // Just submit the guess - the listener will handle results calculation
+            roomRef.child(`guesses/${gameState.playerId}`).set(answer);
             
             document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
             showScreen('waitingAnswer');
         }
 
         // Calculate results (host only)
+        let resultsCalculated = {};
         function calculateResults() {
+            const round = gameState.currentRound;
+            if (resultsCalculated[round]) return; // Prevent duplicate calls
+            resultsCalculated[round] = true;
+            
             roomRef.once('value').then((snap) => {
                 const data = snap.val();
                 const answers = data.answers;
