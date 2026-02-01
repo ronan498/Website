@@ -517,6 +517,9 @@
             });
         });
 
+        // Track if game has been started to prevent duplicate calls
+        let gameStarted = false;
+        
         // Setup room listeners
         function setupRoomListeners() {
             roomRef.child('players').on('value', (snapshot) => {
@@ -527,7 +530,8 @@
                 
                 if (players.player1 && players.player2 && 
                     players.player1.ready && players.player2.ready) {
-                    if (gameState.isHost) {
+                    if (gameState.isHost && !gameStarted) {
+                        gameStarted = true;
                         startGame();
                     }
                 }
@@ -585,9 +589,19 @@
             roomRef.child(`players/${gameState.playerId}/ready`).set(gameState.isReady);
         });
 
+        // Fisher-Yates shuffle for unbiased randomization
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        
         // Start game (host only)
         function startGame() {
-            const shuffled = [...questions].sort(() => Math.random() - 0.5);
+            const shuffled = shuffleArray(questions);
             const selectedQuestions = shuffled.slice(0, 5);
             
             // Reset phase tracking
@@ -633,6 +647,7 @@
                 currentPhaseKey = null;
                 guessPhaseStarted = {};
                 resultsCalculated = {};
+                gameStarted = false;
             }
         }
 

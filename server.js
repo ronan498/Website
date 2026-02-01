@@ -171,8 +171,12 @@ io.on('connection', (socket) => {
         room.currentRound = 0;
         room.players.forEach(p => p.score = 0);
         
-        // Select random questions (copy array to avoid mutating original)
-        const shuffled = [...questions].sort(() => Math.random() - 0.5);
+        // Fisher-Yates shuffle for unbiased randomization
+        const shuffled = [...questions];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
         room.questions = shuffled.slice(0, 5);
         
         io.to(roomCode).emit('gameStarting', {
