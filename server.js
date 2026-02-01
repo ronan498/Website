@@ -171,8 +171,8 @@ io.on('connection', (socket) => {
         room.currentRound = 0;
         room.players.forEach(p => p.score = 0);
         
-        // Select random questions
-        const shuffled = questions.sort(() => Math.random() - 0.5);
+        // Select random questions (copy array to avoid mutating original)
+        const shuffled = [...questions].sort(() => Math.random() - 0.5);
         room.questions = shuffled.slice(0, 5);
         
         io.to(roomCode).emit('gameStarting', {

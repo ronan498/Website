@@ -784,11 +784,17 @@
             
             roomRef.once('value').then((snap) => {
                 const data = snap.val();
-                const answers = data.answers;
-                const guesses = data.guesses;
+                const answers = data.answers || {};
+                const guesses = data.guesses || {};
                 
-                const p1Correct = guesses.player1.toLowerCase().trim() === answers.player2.toLowerCase().trim();
-                const p2Correct = guesses.player2.toLowerCase().trim() === answers.player1.toLowerCase().trim();
+                // Safely compare with null checks
+                const p1Guess = guesses.player1 || '';
+                const p2Guess = guesses.player2 || '';
+                const p1Answer = answers.player1 || '';
+                const p2Answer = answers.player2 || '';
+                
+                const p1Correct = p1Guess && p2Answer && p1Guess.toLowerCase().trim() === p2Answer.toLowerCase().trim();
+                const p2Correct = p2Guess && p1Answer && p2Guess.toLowerCase().trim() === p1Answer.toLowerCase().trim();
                 
                 const updates = {
                     phase: 'results',
@@ -936,6 +942,11 @@
                     if (elementId === 'answerTimerProgress') {
                         document.getElementById('answerInput').value = '(No answer)';
                         submitAnswer();
+                    } else if (elementId === 'guessTimerProgress') {
+                        // Auto-submit a random wrong guess on timeout
+                        roomRef.child(`guesses/${gameState.playerId}`).set('(No guess)');
+                        document.getElementById('waitingMessage').textContent = 'Waiting for ' + gameState.partnerName + '...';
+                        showScreen('waitingAnswer');
                     }
                 }
             }, 100);
